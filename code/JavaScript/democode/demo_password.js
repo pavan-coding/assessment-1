@@ -7,7 +7,7 @@ const password = [
     mask: "*",
     validate(value) {
       if (value.length < 6) {
-        return "password must have the following:\n at least 6 characters \n should contain at least one uppercase letter \n should contain at least one lowercase letter \n should contain";
+        return "password must have the following:\n   1.at least 8 characters \n   2.should contain one uppercase letter \n   3.should contain one lowercase letter \n   4.should contain a number\n   5.should contain a symbol";
       }
       return true;
     },
