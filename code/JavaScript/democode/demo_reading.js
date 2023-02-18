@@ -28,11 +28,17 @@
 var twirlTimer = (function () {
   var P = ["\\", "|", "/", "-"];
   var x = 0;
+  let count = 20;
   return setInterval(function () {
-    process.stdout.write("\r" + "Waiting for response " + P[x++]);
+    process.stdout.write(
+      "\r" +
+        ` Terminal will Reset in  ${Math.round(count / 4)} Seconds ` +
+        P[x++]
+    );
+    count -= 1;
     x &= 3;
   }, 250);
 })();
 setTimeout(() => {
   clearTimeout(twirlTimer);
-}, 5000);
+}, 5250);
