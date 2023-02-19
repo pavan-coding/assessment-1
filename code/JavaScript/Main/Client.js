@@ -1,14 +1,118 @@
 const inquirer = require("inquirer");
 const chalk = require("chalk");
 const terminalkit = require("terminal-kit");
+const readline = require("readline");
+const net = require("net");
 const check_user = require("../Database/check_user_exists");
 const register_user = require("../Database/register");
 const login_user = require("../Database/login");
+const add_user = require("../Database/online_add");
+const remove_user = require("../Database/online_remove");
 const terminal = terminalkit.terminal;
+const Status = "shell";
+const shell_mode = [
+  "$request_accept",
+  "$help",
+  "$logout",
+  "$list",
+  "$creategp",
+  "$joingp",
+  "$request",
+  "$gpinfo",
+  "$update_password",
+];
+const chat_mode = ["$help", "$exit", "$remove_user", "$gpinfo", "$remove_user"];
+let rl;
+let username_login;
+var input_readline = "";
+function check_in_shell(str) {
+  return shell_mode.indexOf(str.toLocaleLowerCase());
+}
+function check_in_chat(str) {
+  return chat_mode.indexOf(str.toLocaleLowerCase());
+}
+function is_command(str) {
+  if (str[0].localeCompare("$") == 0) return true;
+  return false;
+}
+function init_readline() {
+  rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: chalk.redBright("➜ "),
+  });
+  rl.on("line", function (line) {
+    if (Status.localeCompare("shell") == 0) {
+      if (is_command(line) == false) {
+        console.log(
+          chalk.redBright("ERROR:") +
+            " You are in Shell mode only Commands are allowed\nIf you don't know commands Enter " +
+            chalk.yellow("$help") +
+            " If you Need commands list with Discription"
+        );
+        process.stdout.write(chalk.redBright("➜ "));
+        return;
+      }
+    }
 
+    if (is_command(line) == true) {
+      let command_parts = line.split(" ");
+      if (
+        check_in_shell(command_parts[0]) == -1 &&
+        check_in_chat(command_parts[0]) == -1
+      ) {
+        console.log(
+          chalk.redBright("ERROR:") +
+            " Invalid Command\nIf you don't know commands Enter " +
+            chalk.yellow("$help") +
+            " If you Need commands list with Discription"
+        );
+        process.stdout.write(chalk.redBright("➜ "));
+        return;
+      }
+    }
+    terminal.up(1);
+    terminal.eraseLine();
+    if (is_command(line) == true) console.log(chalk.blue("➜ ") + line);
+    else console.log(line);
+    if (line.toLocaleLowerCase().localeCompare("$logout") == 0) {
+      close_readline();
+      return;
+    } else if (line.toLocaleLowerCase().localeCompare("$help") == 0) {
+      print_help_table();
+    }
+    process.stdout.write(chalk.redBright("➜ "));
+  });
+  rl.input.on("keypress", (character, key) => {
+    input_readline += character;
+    if (character == "\r") {
+      input_readline = "";
+    }
+  });
+}
+function close_readline() {
+  process.stdin.destroy();
+  rl.close();
+}
+function display(string_val) {
+  const width = terminal.width;
+  const position = Math.round((width - string_val.length) / 2);
+  let spaces = "";
+  for (let i = 0; i < position; i++) {
+    spaces += " ";
+  }
+  console.log(spaces + chalk.black.bgYellow(string_val));
+}
+function help_display() {
+  const help =
+    "Type " +
+    chalk.yellow("$help") +
+    " If you Need commands list with Discription";
+  console.log(help);
+}
 function print_heading() {
   const width = terminal.width;
-  const title = "Tcp Server - Client Terminal Application";
+  const title = "  Tcp Server - Client Terminal Application  ";
   const position = Math.round((width - title.length) / 2);
   let spaces = "";
   for (let i = 0; i < position; i++) {
@@ -18,10 +122,47 @@ function print_heading() {
   console.log(spaces + chalk.black.bgYellow(title));
 }
 
+async function prompt_user_login_or_register() {
+  await user_login_or_register();
+  let promise_terminal = new Promise((resolve, reject) => {
+    let P = ["\\", "|", "/", "-"];
+    let x = 0;
+    let count = 20;
+    var twirlTimer = setInterval(function () {
+      process.stdout.write(
+        "\r" +
+          ` Terminal will Reset in  ${Math.round(count / 4)} Seconds ` +
+          P[x++]
+      );
+      count -= 1;
+      if (count < 0) {
+        terminal.clear();
+        clearTimeout(twirlTimer);
+        resolve();
+      }
+      x &= 3;
+    }, 250);
+    return twirlTimer;
+  });
+  const terminal_obj = promise_terminal;
+  await terminal_obj.then(() => {
+    print_heading();
+  });
+}
 async function user_login_or_register() {
   let login_status = false;
   while (login_status == false) {
     let answers = await inquirer.prompt(login_or_register);
+    if (answers["login_or_register"].localeCompare("Exit") == 0) {
+      console.log(
+        chalk.yellowBright.bold("Have a Nice Day! ") +
+          "😊 " +
+          chalk.yellowBright.bold("Bye ") +
+          "👋"
+      );
+      process.exit();
+    }
+
     if (answers["login_or_register"].localeCompare("Login") == 0) {
       login_status = true;
       await inquirer_login();
@@ -30,13 +171,22 @@ async function user_login_or_register() {
     }
   }
 }
+async function user_online() {
+  add_user.add_user(username_login);
+}
+async function user_offline() {
+  remove_user.remove_user(username_login);
+}
 async function inquirer_registration() {
   let answers = await inquirer.prompt(register);
   await register_user.register_user(answers["username"], answers["password"]);
 }
-
+process.on("exit", async function () {
+  await user_offline();
+});
 async function inquirer_login() {
   let answers = await inquirer.prompt(login);
+  await user_online();
   console.log(
     " " +
       chalk.green.bold("Hurry! ") +
@@ -46,15 +196,57 @@ async function inquirer_login() {
   );
 }
 
+function print_help_table() {
+  terminal.table(
+    [
+      ["^Y$help", "To get the List Of commands with Description"],
+      ["^Y$list -clients", "To get the List of Clients who are Online"],
+      ["^Y$list -groups", "To get the List of Groups which are Online"],
+      ["^Y$list -requests", "To get the List of Request received from clients"],
+      [
+        "^Y$creategp name password",
+        "To Create a Group with name {name} and password {password}",
+      ],
+      [
+        "^Y$joingp name password",
+        "To Join a Group with name {name} and authenticated with password {password}",
+      ],
+      ["^Y$exit -group", "To Exit from The Group Chat"],
+      ["^Y$exit -chat", "To exit from the 1:1 chat"],
+      ["^Y$request name", "To send request to a client with name {name}"],
+      [
+        "^Y$request_accept name",
+        "To Accept the  request got from a client with name {name}",
+      ],
+      ["^Y$gpinfo name", "To get the List of Clients who are in the group"],
+      [
+        "^Y$update_password oldpassword newpassword",
+        "To get the List of Clients who are Online",
+      ],
+      [
+        "^Y$remove_user name",
+        "To remove the user with name {name} from the group\nNote: only admin can remove clients form the group",
+      ],
+      ["^Y$logout", "To quit from the app"],
+    ],
+    {
+      hasBorder: true,
+      contentHasMarkup: true,
+      borderChars: "lightRounded",
+      width: Math.round((terminal.width / 100) * 70),
+      fit: true,
+    }
+  );
+}
 print_heading();
 let password_register;
-let username_login;
+
 const login_or_register = [
   {
     type: "list",
     prefix: "",
     name: "login_or_register",
-    choices: ["Login", "Register"],
+    choices: ["Login", "Register", "Exit"],
   },
 ];
 
@@ -136,4 +328,12 @@ const register = [
     },
   },
 ];
-user_login_or_register();
+const demo = async () => {
+  await prompt_user_login_or_register();
+  console.log();
+  display("  Shell  ");
+  help_display();
+  init_readline();
+  process.stdout.write(chalk.redBright("➜ "));
+};
+demo();

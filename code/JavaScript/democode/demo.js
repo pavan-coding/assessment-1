@@ -1,23 +1,11 @@
-// require("dotenv").config();
-// console.log(process.env.USER);
-const inquirer = require("inquirer");
-
-async function getUserInput() {
-  const answers = await inquirer.prompt([
-    {
-      type: "input",
-      name: "input",
-      message: "Enter input: ",
-    },
-  ]);
-  return answers.input;
-}
-
-async function run() {
-  while (true) {
-    const userInput = await getUserInput();
-    console.log(`You entered: ${userInput}`);
-  }
-}
-
-run();
+const readline = require("readline");
+process.on("exit", () => {
+  console.log("exit");
+});
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+rl.question("What is your name? ", (answer) => {
+  rl.close();
+});

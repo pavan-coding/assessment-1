@@ -12,5 +12,8 @@ const server = net.createServer((socket) => {
       socket.end();
     }, 5000);
   });
+  socket.on("error:", (err) => {
+    console.log(err);
+  });
 });
 server.listen(12345);

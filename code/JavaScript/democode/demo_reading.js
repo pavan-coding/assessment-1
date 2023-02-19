@@ -25,20 +25,31 @@
 //   process.stdout.write(``);
 // }
 //process.stdout.write("Waiting for authentication ");
-var twirlTimer = (function () {
-  var P = ["\\", "|", "/", "-"];
-  var x = 0;
-  let count = 20;
-  return setInterval(function () {
-    process.stdout.write(
-      "\r" +
-        ` Terminal will Reset in  ${Math.round(count / 4)} Seconds ` +
-        P[x++]
-    );
-    count -= 1;
-    x &= 3;
-  }, 250);
-})();
-setTimeout(() => {
-  clearTimeout(twirlTimer);
-}, 5250);
+const terminal = require("terminal-kit").terminal;
+function CleanTerminal() {
+  let promise_terminal = new Promise((resolve, reject) => {
+    let P = ["\\", "|", "/", "-"];
+    let x = 0;
+    let count = 20;
+    var twirlTimer = setInterval(function () {
+      process.stdout.write(
+        "\r" +
+          ` Terminal will Reset in  ${Math.round(count / 4)} Seconds ` +
+          P[x++]
+      );
+      count -= 1;
+      if (count < 0) {
+        terminal.clear();
+        clearTimeout(twirlTimer);
+        resolve();
+      }
+      x &= 3;
+    }, 250);
+    return twirlTimer;
+  });
+  const terminal_obj = promise_terminal;
+  terminal_obj.then(() => {
+    console.log("hello");
+  });
+}
+CleanTerminal();
