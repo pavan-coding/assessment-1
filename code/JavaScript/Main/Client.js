@@ -9,6 +9,7 @@ const login_user = require("../Database/login");
 const add_user = require("../Database/online_add");
 const remove_user = require("../Database/online_remove");
 const getclients = require("../Database/getclients");
+const user_update_password = require("../Database/update_password");
 
 const terminal = terminalkit.terminal;
 const Status = "shell";
@@ -24,7 +25,7 @@ const shell_mode = [
   "$gpinfo",
   "$update_password",
 ];
-const chat_mode = ["$help", "$exit", "$remove_user", "$gpinfo", "$remove_user"];
+const chat_mode = ["$help", "$exit", "$remove_user", "$gpinfo"];
 let rl;
 let username_login = "";
 var input_readline = "";
@@ -86,7 +87,10 @@ function init_readline() {
         return;
       } else if (line.toLocaleLowerCase().localeCompare("$help") == 0) {
         print_help_table();
-      } else if (parts[0].toLocaleLowerCase().localeCompare("$list") == 0) {
+      } else if (
+        parts.length == 2 &&
+        parts[0].toLocaleLowerCase().localeCompare("$list") == 0
+      ) {
         if (parts[1].toLocaleLowerCase().localeCompare("-clients") == 0) {
           const answer = await getclients.list_clients();
           const result = new Set();
@@ -104,6 +108,9 @@ function init_readline() {
           } else {
             console.log("No Clients in Online " + "😞");
           }
+        } else if (
+          parts[1].toLocaleLowerCase().localeCompare("-requests") == 0
+        ) {
         }
       } else if (line.toLocaleLowerCase().localeCompare("$clear") == 0) {
         terminal.clear();
@@ -111,6 +118,27 @@ function init_readline() {
         console.log();
         display("  Shell  ");
         help_display();
+      } else if (
+        parts.length == 3 &&
+        parts[0].toLocaleLowerCase().localeCompare("$update_password") == 0
+      ) {
+        const result = await user_update_password.user_update_password(
+          username_login,
+          parts[1],
+          parts[2]
+        );
+        if (result == true) {
+          console.log(chalk.greenBright("Password Updated Successfully"));
+        } else {
+          console.log(result);
+        }
+      } else {
+        console.log(
+          chalk.redBright("ERROR:") +
+            " You are in Shell mode only Commands are allowed\nIf you don't know commands Enter " +
+            chalk.yellow("$help") +
+            " If you Need commands list with Discription"
+        );
       }
     }
     process.stdout.write(chalk.redBright("➜ "));
