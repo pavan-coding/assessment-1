@@ -8,6 +8,8 @@ const register_user = require("../Database/register");
 const login_user = require("../Database/login");
 const add_user = require("../Database/online_add");
 const remove_user = require("../Database/online_remove");
+const getclients = require("../Database/getclients");
+
 const terminal = terminalkit.terminal;
 const Status = "shell";
 const shell_mode = [
@@ -17,13 +19,14 @@ const shell_mode = [
   "$list",
   "$creategp",
   "$joingp",
+  "$clear",
   "$request",
   "$gpinfo",
   "$update_password",
 ];
 const chat_mode = ["$help", "$exit", "$remove_user", "$gpinfo", "$remove_user"];
 let rl;
-let username_login;
+let username_login = "";
 var input_readline = "";
 function check_in_shell(str) {
   return shell_mode.indexOf(str.toLocaleLowerCase());
@@ -32,7 +35,7 @@ function check_in_chat(str) {
   return chat_mode.indexOf(str.toLocaleLowerCase());
 }
 function is_command(str) {
-  if (str[0].localeCompare("$") == 0) return true;
+  if (str.length > 0 && str[0].localeCompare("$") == 0) return true;
   return false;
 }
 function init_readline() {
@@ -41,7 +44,7 @@ function init_readline() {
     output: process.stdout,
     prompt: chalk.redBright("➜ "),
   });
-  rl.on("line", function (line) {
+  rl.on("line", async function (line) {
     if (Status.localeCompare("shell") == 0) {
       if (is_command(line) == false) {
         console.log(
@@ -73,13 +76,42 @@ function init_readline() {
     }
     terminal.up(1);
     terminal.eraseLine();
+
     if (is_command(line) == true) console.log(chalk.blue("➜ ") + line);
     else console.log(line);
-    if (line.toLocaleLowerCase().localeCompare("$logout") == 0) {
-      close_readline();
-      return;
-    } else if (line.toLocaleLowerCase().localeCompare("$help") == 0) {
-      print_help_table();
+    if (is_command(line) == true) {
+      const parts = line.split(" ");
+      if (line.toLocaleLowerCase().localeCompare("$logout") == 0) {
+        close_readline();
+        return;
+      } else if (line.toLocaleLowerCase().localeCompare("$help") == 0) {
+        print_help_table();
+      } else if (parts[0].toLocaleLowerCase().localeCompare("$list") == 0) {
+        if (parts[1].toLocaleLowerCase().localeCompare("-clients") == 0) {
+          const answer = await getclients.list_clients();
+          const result = new Set();
+          for (let i = 0; i < answer.length; i++) {
+            {
+              result.add(answer[i].username);
+            }
+          }
+          result.delete(username_login);
+          const display_result = Array.from(result);
+          if (display_result.length > 0) {
+            for (let i = 0; i < display_result.length; i++) {
+              console.log(chalk.greenBright(display_result[i]));
+            }
+          } else {
+            console.log("No Clients in Online " + "😞");
+          }
+        }
+      } else if (line.toLocaleLowerCase().localeCompare("$clear") == 0) {
+        terminal.clear();
+        print_heading();
+        console.log();
+        display("  Shell  ");
+        help_display();
+      }
     }
     process.stdout.write(chalk.redBright("➜ "));
   });
@@ -154,12 +186,6 @@ async function user_login_or_register() {
   while (login_status == false) {
     let answers = await inquirer.prompt(login_or_register);
     if (answers["login_or_register"].localeCompare("Exit") == 0) {
-      console.log(
-        chalk.yellowBright.bold("Have a Nice Day! ") +
-          "😊 " +
-          chalk.yellowBright.bold("Bye ") +
-          "👋"
-      );
       process.exit();
     }
 
@@ -172,17 +198,28 @@ async function user_login_or_register() {
   }
 }
 async function user_online() {
-  add_user.add_user(username_login);
+  await add_user.add_user(username_login);
 }
 async function user_offline() {
-  remove_user.remove_user(username_login);
+  await remove_user.remove_user(username_login);
 }
 async function inquirer_registration() {
   let answers = await inquirer.prompt(register);
   await register_user.register_user(answers["username"], answers["password"]);
 }
-process.on("exit", async function () {
-  await user_offline();
+process.on("beforeExit", async () => {
+  if (username_login != "") {
+    await user_offline();
+    process.exit();
+  }
+});
+process.on("exit", () => {
+  console.log(
+    chalk.yellowBright.bold("Have a Nice Day! ") +
+      "😊 " +
+      chalk.yellowBright.bold("Bye ") +
+      "👋"
+  );
 });
 async function inquirer_login() {
   let answers = await inquirer.prompt(login);
