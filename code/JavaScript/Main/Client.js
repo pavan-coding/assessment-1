@@ -6,7 +6,7 @@ const net = require("net");
 const check_user = require("../Database/check_user_exists");
 const register_user = require("../Database/register");
 const login_user = require("../Database/login");
-const remove_user = require("../Database/online_remove");
+
 const user_update_password = require("../Database/update_password");
 
 const terminal = terminalkit.terminal;
@@ -112,11 +112,13 @@ function init_readline() {
         return;
       }
     }
+
     terminal.up(1);
     terminal.eraseLine();
 
     if (is_command(line) == true) console.log(chalk.blue("➜ ") + line);
     else console.log(line);
+
     if (is_command(line) == true) {
       const parts = line.split(" ");
       if (line.toLocaleLowerCase().localeCompare("$logout") == 0) {
@@ -134,6 +136,7 @@ function init_readline() {
         } else if (
           parts[1].toLocaleLowerCase().localeCompare("-requests") == 0
         ) {
+          client.write(JSON.stringify({ type: "list_requests" }));
         } else if (parts[1].toLocaleLowerCase().localeCompare("-groups") == 0) {
         } else {
           display_invalid();
@@ -169,6 +172,10 @@ function init_readline() {
         };
 
         client.write(JSON.stringify(data));
+      } else if (
+        parts.length == 2 &&
+        parts[0].toLocaleLowerCase().localeCompare("$request_accept") == 0
+      ) {
       }
     }
     process.stdout.write(chalk.redBright("➜ "));
@@ -268,23 +275,19 @@ async function user_login_or_register() {
     }
   }
 }
-async function user_offline() {
-  await remove_user.remove_user(username_login);
-}
+
 async function inquirer_registration() {
   let answers = await inquirer.prompt(register);
   await register_user.register_user(answers["username"], answers["password"]);
 }
 process.on("SIGINT", async () => {
   if (username_login != "") {
-    await user_offline();
     close_client();
     process.exit();
   }
 });
 process.on("beforeExit", async () => {
   if (username_login != "") {
-    await user_offline();
     close_client();
     process.exit();
   }

@@ -2,10 +2,15 @@ const net = require("net");
 const chalk = require("chalk");
 const randomcolor = require("randomcolor");
 const send_request = require("../Database/send_request");
+const remove_user = require("../Database/online_remove");
+const list_requests = require("../Database/list_request");
 const sockets = [];
 const one_to_one = [];
 const group = [];
 
+async function user_offline(username_login) {
+  await remove_user.remove_user(username_login);
+}
 function getid(name) {
   let count = 0;
   for (let i = 0; i < sockets.length; i++) {
@@ -42,10 +47,16 @@ const server = net.createServer((socket) => {
       //console.log(sockets);
     }
     if (data.type.toLowerCase().localeCompare("-clients") == 0) {
+      let count = 1;
       if (sockets.length > 1) {
+        socket.write(
+          chalk.greenBright("Server:") +
+            " The List of Clients who are online are:\n"
+        );
         for (let i = 0; i < sockets.length; i++) {
           if (sockets[i][1].id.localeCompare(socket.id) != 0)
-            socket.write(sockets[i][1].id);
+            socket.write(" " + count + ". " + sockets[i][1].id + "\n");
+          count += 1;
         }
       } else {
         socket.write("No Clients in Online " + "😞");
@@ -53,8 +64,8 @@ const server = net.createServer((socket) => {
     }
     if (data.type.toLowerCase().localeCompare("request") == 0) {
       let dummy = getsocket(data.request_to);
-      console.log(dummy);
-      console.log(data);
+      //  console.log(dummy);
+      //   console.log(data);
       if (
         dummy != -1 &&
         dummy.in_one_to_one == false &&
@@ -65,7 +76,10 @@ const server = net.createServer((socket) => {
             chalk.yellowBright(data.request_to)
         );
         dummy.write(
-          chalk.greenBright(socket.id) + " has Sent a Request to You"
+          chalk.yellowBright("Server:") +
+            " " +
+            chalk.greenBright(socket.id) +
+            " has Sent a Request to You"
         );
         await send_request.add_request(socket.id, data.request_to);
       } else {
@@ -76,8 +90,25 @@ const server = net.createServer((socket) => {
         );
       }
     }
+    if (data.type.toLowerCase().localeCompare("list_requests") == 0) {
+      const requests = await list_requests.list_client_requested(socket.id);
+
+      if (requests.length > 0) {
+        socket.write(
+          chalk.greenBright("Server:") + " List of Requested Clients: \n"
+        );
+        for (let i = 0; i < requests.length; i++) {
+          socket.write(i + 1 + ". " + requests[i]);
+        }
+      } else {
+        socket.write(
+          chalk.greenBright("Server :") + " No Requests From Clients"
+        );
+      }
+    }
     if (data.type.toLowerCase().localeCompare("end") == 0) {
       console.log(data.data);
+      await user_offline(socket.id);
       for (let i = 0; i < sockets.length; i++) {
         if (sockets[i][1].id.localeCompare(socket.id) == 0) {
           sockets.splice(i, 1);

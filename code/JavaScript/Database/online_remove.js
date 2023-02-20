@@ -4,6 +4,8 @@ const client = new MongoClient(uri);
 const database = "assessment1";
 
 async function remove_user(username) {
+  await client.connect();
+
   await client
     .db(database)
     .collection("Requests")
