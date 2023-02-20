@@ -6,9 +6,7 @@ const net = require("net");
 const check_user = require("../Database/check_user_exists");
 const register_user = require("../Database/register");
 const login_user = require("../Database/login");
-const add_user = require("../Database/online_add");
 const remove_user = require("../Database/online_remove");
-const getclients = require("../Database/getclients");
 const user_update_password = require("../Database/update_password");
 
 const terminal = terminalkit.terminal;
@@ -27,18 +25,57 @@ const shell_mode = [
 ];
 const chat_mode = ["$help", "$exit", "$remove_user", "$gpinfo"];
 let rl;
+let client;
 let username_login = "";
 var input_readline = "";
+
 function check_in_shell(str) {
   return shell_mode.indexOf(str.toLocaleLowerCase());
 }
+
 function check_in_chat(str) {
   return chat_mode.indexOf(str.toLocaleLowerCase());
 }
+
 function is_command(str) {
   if (str.length > 0 && str[0].localeCompare("$") == 0) return true;
   return false;
 }
+
+function init_client() {
+  client = new net.Socket();
+  const options = {
+    port: 12345,
+    host: "127.0.0.1",
+  };
+  client.connect(options);
+  const server_data = {
+    type: "login",
+    data: username_login + " Connected to the Server",
+  };
+  client.write(JSON.stringify(server_data));
+  client.on("data", function (data) {
+    readline.clearLine(process.stdout, 0, () => {
+      readline.cursorTo(process.stdout, 0, () => {
+        console.log(data.toString("utf8"));
+        rl.write(null, {
+          ctrl: true,
+          name: "u",
+        });
+        rl.write(input_readline);
+      });
+    });
+  });
+}
+
+function close_client() {
+  const data = {
+    type: "end",
+    data: chalk.redBright(username_login) + " Disconnected From The Server",
+  };
+  client.end(JSON.stringify(data));
+}
+
 function init_readline() {
   rl = readline.createInterface({
     input: process.stdin,
@@ -84,6 +121,7 @@ function init_readline() {
       const parts = line.split(" ");
       if (line.toLocaleLowerCase().localeCompare("$logout") == 0) {
         close_readline();
+        close_client();
         return;
       } else if (line.toLocaleLowerCase().localeCompare("$help") == 0) {
         print_help_table();
@@ -92,25 +130,13 @@ function init_readline() {
         parts[0].toLocaleLowerCase().localeCompare("$list") == 0
       ) {
         if (parts[1].toLocaleLowerCase().localeCompare("-clients") == 0) {
-          const answer = await getclients.list_clients();
-          const result = new Set();
-          for (let i = 0; i < answer.length; i++) {
-            {
-              result.add(answer[i].username);
-            }
-          }
-          result.delete(username_login);
-          const display_result = Array.from(result);
-          if (display_result.length > 0) {
-            for (let i = 0; i < display_result.length; i++) {
-              console.log(chalk.greenBright(display_result[i]));
-            }
-          } else {
-            console.log("No Clients in Online " + "😞");
-          }
+          client.write(JSON.stringify({ type: "-clients" }));
         } else if (
           parts[1].toLocaleLowerCase().localeCompare("-requests") == 0
         ) {
+        } else if (parts[1].toLocaleLowerCase().localeCompare("-groups") == 0) {
+        } else {
+          display_invalid();
         }
       } else if (line.toLocaleLowerCase().localeCompare("$clear") == 0) {
         terminal.clear();
@@ -132,13 +158,17 @@ function init_readline() {
         } else {
           console.log(result);
         }
-      } else {
-        console.log(
-          chalk.redBright("ERROR:") +
-            " You are in Shell mode only Commands are allowed\nIf you don't know commands Enter " +
-            chalk.yellow("$help") +
-            " If you Need commands list with Discription"
-        );
+      } else if (
+        parts.length == 2 &&
+        parts[0].toLocaleLowerCase().localeCompare("$request") == 0
+      ) {
+        const data = {
+          type: "request",
+          request_to: parts[1],
+          request_from: username_login,
+        };
+
+        client.write(JSON.stringify(data));
       }
     }
     process.stdout.write(chalk.redBright("➜ "));
@@ -150,10 +180,19 @@ function init_readline() {
     }
   });
 }
+function display_invalid() {
+  console.log(
+    chalk.redBright("ERROR:") +
+      " Invalid Command\nIf you don't know commands Enter " +
+      chalk.yellow("$help") +
+      " If you Need commands list with Discription"
+  );
+}
 function close_readline() {
   process.stdin.destroy();
   rl.close();
 }
+
 function display(string_val) {
   const width = terminal.width;
   const position = Math.round((width - string_val.length) / 2);
@@ -163,6 +202,7 @@ function display(string_val) {
   }
   console.log(spaces + chalk.black.bgYellow(string_val));
 }
+
 function help_display() {
   const help =
     "Type " +
@@ -170,6 +210,7 @@ function help_display() {
     " If you Need commands list with Discription";
   console.log(help);
 }
+
 function print_heading() {
   const width = terminal.width;
   const title = "  Tcp Server - Client Terminal Application  ";
@@ -181,9 +222,7 @@ function print_heading() {
   terminal.clear();
   console.log(spaces + chalk.black.bgYellow(title));
 }
-
-async function prompt_user_login_or_register() {
-  await user_login_or_register();
+async function rotate_animation() {
   let promise_terminal = new Promise((resolve, reject) => {
     let P = ["\\", "|", "/", "-"];
     let x = 0;
@@ -209,6 +248,10 @@ async function prompt_user_login_or_register() {
     print_heading();
   });
 }
+async function prompt_user_login_or_register() {
+  await user_login_or_register();
+  await rotate_animation();
+}
 async function user_login_or_register() {
   let login_status = false;
   while (login_status == false) {
@@ -225,9 +268,6 @@ async function user_login_or_register() {
     }
   }
 }
-async function user_online() {
-  await add_user.add_user(username_login);
-}
 async function user_offline() {
   await remove_user.remove_user(username_login);
 }
@@ -235,9 +275,17 @@ async function inquirer_registration() {
   let answers = await inquirer.prompt(register);
   await register_user.register_user(answers["username"], answers["password"]);
 }
+process.on("SIGINT", async () => {
+  if (username_login != "") {
+    await user_offline();
+    close_client();
+    process.exit();
+  }
+});
 process.on("beforeExit", async () => {
   if (username_login != "") {
     await user_offline();
+    close_client();
     process.exit();
   }
 });
@@ -251,7 +299,6 @@ process.on("exit", () => {
 });
 async function inquirer_login() {
   let answers = await inquirer.prompt(login);
-  await user_online();
   console.log(
     " " +
       chalk.green.bold("Hurry! ") +
@@ -399,6 +446,7 @@ const demo = async () => {
   display("  Shell  ");
   help_display();
   init_readline();
+  init_client();
   process.stdout.write(chalk.redBright("➜ "));
 };
 demo();

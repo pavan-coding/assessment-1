@@ -9,11 +9,14 @@ const server = net.createServer((socket) => {
     setTimeout(() => {
       const welcome = chalk.green;
       socket.write(welcome("data received") + count);
-      socket.end();
     }, 5000);
   });
-  socket.on("error:", (err) => {
+  socket.on("error", (err) => {
     console.log(err);
   });
+  socket.on("end", () => {
+    console.log("user disconnected");
+  });
 });
+server.on("error", (err) => {});
 server.listen(12345);

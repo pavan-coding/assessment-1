@@ -15,6 +15,9 @@ rl.on("line", function (line) {
   terminal.up(1);
   terminal.eraseLine();
   console.log(line);
+  if (line.localeCompare("exit") == 0) {
+    client.end("i got disconnected");
+  }
   process.stdout.write(chalk.redBright("➜ "));
 });
 const options = { port: 12345, host: "127.0.0.1" };
