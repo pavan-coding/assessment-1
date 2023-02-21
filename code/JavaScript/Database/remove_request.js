@@ -5,10 +5,19 @@ const database = "assessment1";
 const collection = "Requests";
 async function remove_request(username, key) {
   await client.connect();
+  const result = await client
+    .db(database)
+    .collection(collection)
+    .findOne({ username: username, requests: { $in: [key] } });
   await client
     .db(database)
     .collection(collection)
-    .updateOne({ username: key }, { $pull: { requests: "running" } });
+    .updateOne({ username: username }, { $pull: { requests: key } });
+  if (result != null) {
+    client.close();
+    return true;
+  }
   client.close();
+  return false;
 }
 module.exports = { remove_request };

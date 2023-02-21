@@ -10,7 +10,7 @@ const login_user = require("../Database/login");
 const user_update_password = require("../Database/update_password");
 
 const terminal = terminalkit.terminal;
-const Status = "shell";
+let Status = "shell";
 const shell_mode = [
   "$request_accept",
   "$help",
@@ -23,7 +23,8 @@ const shell_mode = [
   "$gpinfo",
   "$update_password",
 ];
-const chat_mode = ["$help", "$exit", "$remove_user", "$gpinfo"];
+const chat_mode = ["$help", "$exit", "$clear"];
+const group_mode = ["$remove_user", "$gpinfo", "$help", "$exit", "$clear"];
 let rl;
 let client;
 let username_login = "";
@@ -33,10 +34,42 @@ function check_in_shell(str) {
   return shell_mode.indexOf(str.toLocaleLowerCase());
 }
 
+async function setChatMode() {
+  await rotate_animation();
+  Status = " chat:1-1 ";
+  print_heading();
+  console.log();
+  display(Status);
+  help_display();
+  process.stdout.write(chalk.redBright("➜ "));
+}
+
+async function setGroupMode() {
+  await rotate_animation();
+  Status = " group ";
+  print_heading();
+  console.log();
+  display(Status);
+  help_display();
+  process.stdout.write(chalk.redBright("➜ "));
+}
+
+async function setShellMode() {
+  await rotate_animation();
+  Status = " shell ";
+  print_heading();
+  console.log();
+  display(Status);
+  help_display();
+  process.stdout.write(chalk.redBright("➜ "));
+}
+
 function check_in_chat(str) {
   return chat_mode.indexOf(str.toLocaleLowerCase());
 }
-
+function check_in_group(str) {
+  return group_mode.indexOf(str.toLocaleLowerCase());
+}
 function is_command(str) {
   if (str.length > 0 && str[0].localeCompare("$") == 0) return true;
   return false;
@@ -56,8 +89,26 @@ function init_client() {
   client.write(JSON.stringify(server_data));
   client.on("data", function (data) {
     readline.clearLine(process.stdout, 0, () => {
-      readline.cursorTo(process.stdout, 0, () => {
-        console.log(data.toString("utf8"));
+      readline.cursorTo(process.stdout, 0, async () => {
+        if (data.toString("utf8").localeCompare("$request_accepted") == 0) {
+          console.log(" Request Accepted");
+          await setChatMode();
+        } else if (
+          data
+            .toString("utf8")
+            .localeCompare("$Other Client has disconnected") == 0
+        ) {
+          console.log("Other Client has disconnected");
+          await setShellMode();
+        } else if (
+          data.toString("utf8").localeCompare("$Group Created Successfully") ==
+          0
+        ) {
+          console.log(chalk.greenBright("Group Created Successfully"));
+          await setGroupMode();
+        } else {
+          console.log(data.toString("utf8"));
+        }
         rl.write(null, {
           ctrl: true,
           name: "u",
@@ -96,6 +147,40 @@ function init_readline() {
       }
     }
 
+    if (Status.localeCompare("chat:1-1") == 0) {
+      if (is_command(line) == true) {
+        let dummy = line.split(" ");
+        if (dummy.length > 0 && check_in_chat(dummy[0]) == -1) {
+          console.log(
+            chalk.redBright("ERROR:") +
+              " Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
+          );
+          process.stdout.write(chalk.redBright("➜ "));
+          return;
+        }
+      } else {
+        const data = { type: "message", chat: "1-1", message: line };
+        client.write(JSON.stringify(data));
+      }
+    }
+
+    if (Status.localeCompare("group") == 0) {
+      if (is_command(line) == true) {
+        let dummy = line.split(" ");
+        if (dummy.length > 0 && check_in_group(dummy[0]) == -1) {
+          console.log(
+            chalk.redBright("ERROR:") +
+              " Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
+          );
+          process.stdout.write(chalk.redBright("➜ "));
+          return;
+        }
+      } else {
+        const data = { type: "message", chat: "group", message: line };
+        client.write(JSON.stringify(data));
+      }
+    }
+
     if (is_command(line) == true) {
       let command_parts = line.split(" ");
       if (
@@ -117,7 +202,7 @@ function init_readline() {
     terminal.eraseLine();
 
     if (is_command(line) == true) console.log(chalk.blue("➜ ") + line);
-    else console.log(line);
+    else console.log(chalk.redBright("You: ") + line);
 
     if (is_command(line) == true) {
       const parts = line.split(" ");
@@ -138,6 +223,7 @@ function init_readline() {
         ) {
           client.write(JSON.stringify({ type: "list_requests" }));
         } else if (parts[1].toLocaleLowerCase().localeCompare("-groups") == 0) {
+          client.write(JSON.stringify({ type: "list_groups" }));
         } else {
           display_invalid();
         }
@@ -145,7 +231,7 @@ function init_readline() {
         terminal.clear();
         print_heading();
         console.log();
-        display("  Shell  ");
+        display(Status);
         help_display();
       } else if (
         parts.length == 3 &&
@@ -176,7 +262,56 @@ function init_readline() {
         parts.length == 2 &&
         parts[0].toLocaleLowerCase().localeCompare("$request_accept") == 0
       ) {
-      }
+        const data = {
+          type: "request_accept",
+          user: parts[1],
+        };
+        client.write(JSON.stringify(data));
+
+        return;
+      } else if (
+        parts.length == 2 &&
+        parts[0].toLocaleLowerCase().localeCompare("$exit") == 0
+      ) {
+        if (parts[1].toLocaleLowerCase().localeCompare("-chat") == 0) {
+          let data = { type: "exit-chat" };
+          client.write(JSON.stringify(data));
+          await setShellMode();
+          return;
+        } else if (parts[1].toLocaleLowerCase().localeCompare("-group") == 0) {
+          let data = { type: "exit-group" };
+          client.write(JSON.stringify(data));
+          await setShellMode();
+        } else {
+          display_invalid();
+        }
+      } else if (
+        parts.length == 3 &&
+        parts[0].toLocaleLowerCase().localeCompare("$creategp") == 0
+      ) {
+        let data = {
+          type: "create_group",
+          group_name: parts[1],
+          group_password: parts[2],
+        };
+        client.write(JSON.stringify(data));
+      } else if (
+        parts.length == 2 &&
+        parts[0].toLocaleLowerCase().localeCompare("$gpinfo") == 0
+      ) {
+        let data = { type: "group_info", name: parts[1] };
+        client.write(JSON.stringify(data));
+      } else if (
+        parts.length == 3 &&
+        parts[0].toLocaleLowerCase().localeCompare("$joingp") == 0
+      ) {
+        let data = {
+          type: "join_group",
+          group_name: parts[1],
+          group_password: parts[2],
+        };
+        client.write(JSON.stringify(data));
+      } else display_invalid();
     }
     process.stdout.write(chalk.redBright("➜ "));
   });
