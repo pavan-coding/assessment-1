@@ -36,7 +36,7 @@ function check_in_shell(str) {
 
 async function setChatMode() {
   await rotate_animation();
-  Status = " chat:1-1 ";
+  Status = "chat:1-1";
   print_heading();
   console.log();
   display(Status);
@@ -46,7 +46,7 @@ async function setChatMode() {
 
 async function setGroupMode() {
   await rotate_animation();
-  Status = " group ";
+  Status = "group";
   print_heading();
   console.log();
   display(Status);
@@ -56,7 +56,7 @@ async function setGroupMode() {
 
 async function setShellMode() {
   await rotate_animation();
-  Status = " shell ";
+  Status = "shell";
   print_heading();
   console.log();
   display(Status);
@@ -100,6 +100,13 @@ function init_client() {
         ) {
           console.log("Other Client has disconnected");
           await setShellMode();
+        } else if (
+          data
+            .toString("utf8")
+            .localeCompare("$Added in to Group successfully") == 0
+        ) {
+          console.log(chalk.greenBright("Added in to Group successfully"));
+          await setGroupMode();
         } else if (
           data.toString("utf8").localeCompare("$Group Created Successfully") ==
           0
@@ -153,7 +160,7 @@ function init_readline() {
         if (dummy.length > 0 && check_in_chat(dummy[0]) == -1) {
           console.log(
             chalk.redBright("ERROR:") +
-              " Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
+              "Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
           );
           process.stdout.write(chalk.redBright("➜ "));
           return;
@@ -170,7 +177,7 @@ function init_readline() {
         if (dummy.length > 0 && check_in_group(dummy[0]) == -1) {
           console.log(
             chalk.redBright("ERROR:") +
-              " Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
+              "Invalid Command: only $remove_user, $gpinfo, $help, $exit, $clear are allowed in group mode"
           );
           process.stdout.write(chalk.redBright("➜ "));
           return;

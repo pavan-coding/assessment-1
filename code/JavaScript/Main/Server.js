@@ -35,12 +35,29 @@ function message_multiple(socket, message) {
     )
       break;
   }
-  console.log(i);
 
   for (let j = 0; j < group[i].users_socket.length; j++) {
     if (group[i].users_socket[j] != socket)
       group[i].users_socket[j].write(
         socket.color(socket.myhexcolor, socket.id) + ": " + message
+      );
+  }
+}
+
+function notifyall(socket, message) {
+  let i = 0;
+  for (i = 0; i < group.length; i++) {
+    if (
+      group[i].admin_name.localeCompare(socket.id) == 0 ||
+      group[i].users.indexOf(socket.id) != -1
+    )
+      break;
+  }
+
+  for (let j = 0; j < group[i].users_socket.length; j++) {
+    if (group[i].users_socket[j] != socket)
+      group[i].users_socket[j].write(
+        chalk.greenBright("Server") + ": " + message
       );
   }
 }
@@ -335,7 +352,7 @@ const server = net.createServer((socket) => {
           if (is_user_in_other_group(socket.id) != false) {
             add_user_in_group(data.group_name, socket.id, socket);
             socket.write("$Added in to Group successfully");
-            message_multiple(socket);
+            notifyall(socket, socket.id.split("-")[0] + " Joined the Group");
           } else {
             socket.write(chalk.redBright("User is allowed only in one group"));
           }
