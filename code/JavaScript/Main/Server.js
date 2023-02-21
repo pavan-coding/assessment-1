@@ -9,6 +9,7 @@ const sockets = [];
 const one_to_one = [];
 const group = [];
 let colors = new Set();
+let count_color = 1;
 function random_color() {
   while (colors.size < 256) {
     const color = randomColor({
@@ -24,6 +25,24 @@ function random_color() {
 random_color();
 async function user_offline(username_login) {
   await remove_user.remove_user(username_login);
+}
+function message_multiple(socket, message) {
+  let i = 0;
+  for (i = 0; i < group.length; i++) {
+    if (
+      group[i].admin_name.localeCompare(socket.id) == 0 ||
+      group[i].users.indexOf(socket.id) != -1
+    )
+      break;
+  }
+  console.log(i);
+
+  for (let j = 0; j < group[i].users_socket.length; j++) {
+    if (group[i].users_socket[j] != socket)
+      group[i].users_socket[j].write(
+        socket.color(socket.myhexcolor, socket.id) + ": " + message
+      );
+  }
 }
 function add_group(admin_name, admin_socket, name, password) {
   admin_socket.in_group = true;
@@ -64,13 +83,20 @@ function remove_number(data) {
 function group_info(name) {
   let answer = [];
   //check group exists
+  let count = 2;
   let i;
   for (i = 0; i < group.length; i++) {
-    if (group[i].name == name) break;
+    //console.log(group[i].name + "." + name + ".");
+    if (group[i].name.localeCompare(name) == 0) {
+      break;
+    }
   }
   answer.push("1. " + group[i].admin_name + " " + chalk.red("(Admin)"));
-  for (let i = 0; i < group[i].users.length; i++) {
-    answer.push(i + 2 + ". " + group[i].users[i]);
+  // console.log(i);
+  // console.log(JSON.stringify(group[i].users));
+  for (let j = 0; j < group[i].users.length; j++) {
+    answer.push(count + ". " + group[i].users[j]);
+    count++;
   }
   return answer;
 }
@@ -82,33 +108,46 @@ function check_password(name, password) {
 }
 function add_user_in_group(name, username, user_socket) {
   let i;
-  for (let i = 0; i < group.length; i++) if (group[i].name == name) break;
-  user_socket.in_group = true;
-  user_socket.color = group_color;
-  user_socket.myhexcolor = colors[group[i].users.length];
-  group[i].users.push(username);
-  group[i].users_socket.push(user_socket);
+  for (i = 0; i < group.length; i++) {
+    if (group[i].name.localeCompare(name) == 0) {
+      user_socket.in_group = true;
+      user_socket.color = group_color;
+      user_socket.myhexcolor = colors[count_color];
+      count_color++;
+      group[i].users.push(username);
+      group[i].users_socket.push(user_socket);
+      break;
+    }
+  }
 }
 function remove_user_from_group(group_name, user_socket) {
   let i;
   for (i = 0; i < group.length; i++) {
-    if (group.name.localeCompare(group_name) == 0) break;
+    if (group.name.localeCompare(group_name) == 0) {
+      let index = group[i].users.indexOf(user_socket.id);
+      let index2 = group[i].users_socket.indexOf(user_socket);
+      group[i].users.splice(index, 1);
+      group[i].users_socket.splice(index2, 1);
+      user_socket.in_group = false;
+      delete user_socket.color;
+      delete user_socket.myhexcolor;
+      break;
+    }
   }
-  let index = group[i].users.indexOf(user_socket.id);
-  let index2 = group[i].users_socket.indexOf(user_socket);
-  group[i].users.splice(index, 1);
-  group[i].users_socket.splice(index2, 1);
-  user_socket.in_group = false;
-  delete user_socket.color;
-  delete user_socket.myhexcolor;
 }
 function is_user_in_other_group(username) {
+  username = username.split("-")[0];
+  // console.log(username);
   for (let i = 0; i < group.length; i++) {
-    if (group[i].users.indexOf(username) != -1) {
-      return true;
+    if (group[i].admin_name.search(username) != -1) return false;
+
+    for (let j = 0; j < group[i].users.length; j++) {
+      if (group[i].users[j].search(username) != -1) {
+        return false;
+      }
     }
-    return false;
   }
+  return true;
 }
 function getid(name) {
   let count = 0;
@@ -240,6 +279,7 @@ const server = net.createServer((socket) => {
       if (data.chat.toLowerCase().localeCompare("1-1") == 0) {
         sent_to_alternate(socket, data.message);
       } else {
+        message_multiple(socket, data.message);
       }
     }
 
@@ -257,9 +297,13 @@ const server = net.createServer((socket) => {
 
     if (data.type.toLowerCase().localeCompare("create_group") == 0) {
       let data1 = remove_number(showgroups());
-      if (data1.length == 0 || data1.indexOf(data.group_name) != -1) {
-        add_group(socket.id, socket, data.group_name, data.group_password);
-        socket.write("$Group Created Successfully");
+      if (data1.length == 0 || data1.indexOf(data.group_name) == -1) {
+        if (is_user_in_other_group(socket.id) != false) {
+          add_group(socket.id, socket, data.group_name, data.group_password);
+          socket.write("$Group Created Successfully");
+        } else {
+          socket.write(chalk.redBright("User is allowed only in one group"));
+        }
       } else {
         socket.write(
           chalk.redBright("Already same Named group exists! Use another name")
@@ -286,9 +330,15 @@ const server = net.createServer((socket) => {
 
     if (data.type.toLowerCase().localeCompare("join_group") == 0) {
       let data1 = remove_number(showgroups());
-      if (data1.indexOf(data.name) != -1) {
+      if (data1.indexOf(data.group_name) != -1) {
         if (check_password(data.group_name, data.group_password)) {
-          add_user_in_group(data.group_name, data.user_socket);
+          if (is_user_in_other_group(socket.id) != false) {
+            add_user_in_group(data.group_name, socket.id, socket);
+            socket.write("$Added in to Group successfully");
+            message_multiple(socket);
+          } else {
+            socket.write(chalk.redBright("User is allowed only in one group"));
+          }
         } else socket.write(chalk.redBright("Wrong Password"));
       } else {
         socket.write(chalk.redBright("No Group exists With such name"));
