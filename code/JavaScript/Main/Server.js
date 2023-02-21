@@ -283,6 +283,17 @@ const server = net.createServer((socket) => {
         socket.write(chalk.redBright("No Group exists With such name"));
       }
     }
+
+    if (data.type.toLowerCase().localeCompare("join_group") == 0) {
+      let data1 = remove_number(showgroups());
+      if (data1.indexOf(data.name) != -1) {
+        if (check_password(data.group_name, data.group_password)) {
+          add_user_in_group(data.group_name, data.user_socket);
+        } else socket.write(chalk.redBright("Wrong Password"));
+      } else {
+        socket.write(chalk.redBright("No Group exists With such name"));
+      }
+    }
   });
   socket.on("error", (err) => {});
 });
