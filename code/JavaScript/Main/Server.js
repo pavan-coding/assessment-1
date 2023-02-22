@@ -434,6 +434,42 @@ const server = net.createServer((socket) => {
         socket.write(chalk.redBright("No Group exists With such name"));
       }
     }
+
+    // if (data.type.toLowerCase().localeCompare("remove_user") == 0) {
+    //   if (socket.hasOwnProperty("in_group") && socket.in_group == true) {
+    //     let group_name = find_user_in_group(socket.id);
+    //     if (group_name == null) {
+    //       socket.write(chalk.redBright("User is not in any group"));
+    //       return;
+    //     }
+    //     let i;
+    //     for (i = 0; i < group.length; i++) {
+    //       if (group[i].name.localeCompare(group_name) == 0) {
+    //         break;
+    //       }
+    //     }
+    //     if (group[i].admin_name.localeCompare(socket.id) != 0) {
+    //       socket.write(chalk.redBright("You are not admin of this group you can't remove Users"));
+    //       return;
+    //     }
+    //     // console.log(i,group_name+"received")
+    //     if (group[i].admin_name.localeCompare(data.user_name) == 0) {
+    //       notifyall(socket, "$Admin Left the Chat")
+    //       socket.write("$Admin Left the Chat")
+    //     }
+    //     else {
+    //       notifyall(socket, socket.id + " Removed From the Chat")
+    //       socket.write("$leave group"
+    //       )
+    //     }
+    //     remove_user_from_group(group_name, socket)
+    //   }
+    //   else {
+    //     socket.write(chalk.redBright("You are not in any group"));
+
+    //   }
+
+    // }
   });
   socket.on("error", (err) => { });
 });

@@ -24,7 +24,7 @@ const shell_mode = [
   "$update_password",
 ];
 const chat_mode = ["$help", "$exit", "$clear"];
-const group_mode = ["$remove_user", "$gpinfo", "$help", "$exit", "$clear"];
+const group_mode = ["$gpinfo", "$help", "$exit", "$clear"];
 let rl;
 let client;
 let username_login = "";
@@ -192,7 +192,7 @@ function init_readline() {
         if (dummy.length > 0 && check_in_group(dummy[0]) == -1) {
           console.log(
             chalk.redBright("ERROR:") +
-            "Invalid Command: only $remove_user, $gpinfo, $help, $exit, $clear are allowed in group mode"
+            "Invalid Command: only $gpinfo, $help, $exit, $clear are allowed in group mode"
           );
           process.stdout.write(chalk.redBright("➜ "));
           return;
@@ -228,6 +228,7 @@ function init_readline() {
 
     if (is_command(line) == true) {
       const parts = line.split(" ");
+
       if (line.toLocaleLowerCase().localeCompare("$logout") == 0) {
         close_readline();
         close_client();
@@ -299,7 +300,9 @@ function init_readline() {
         if (parts[1].toLocaleLowerCase().localeCompare("-chat") == 0) {
           let data = { type: "exit-chat" };
           client.write(JSON.stringify(data));
-          await setShellMode();
+          if (Status.localeCompare("chat:1-1") == 0) {
+            await setShellMode();
+          }
           return;
         } else if (parts[1].toLocaleLowerCase().localeCompare("-group") == 0) {
           let data = { type: "exit-group" };
@@ -500,10 +503,6 @@ function print_help_table() {
       [
         "^Y$update_password oldpassword newpassword",
         "To get the List of Clients who are Online",
-      ],
-      [
-        "^Y$remove_user name",
-        "To remove the user with name {name} from the group\nNote: only admin can remove clients form the group",
       ],
       ["^Y$logout", "To quit from the app"],
     ],
