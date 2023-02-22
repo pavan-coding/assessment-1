@@ -87,6 +87,11 @@ function init_client() {
     data: username_login + " Connected to the Server",
   };
   client.write(JSON.stringify(server_data));
+  client.on("error", (err) => {
+    console.log("Server Disconnected");
+    close_client();
+    process.exit();
+  })
   client.on("data", function (data) {
     readline.clearLine(process.stdout, 0, () => {
       readline.cursorTo(process.stdout, 0, async () => {
@@ -113,6 +118,16 @@ function init_client() {
         ) {
           console.log(chalk.greenBright("Group Created Successfully"));
           await setGroupMode();
+        } else if (data.toString("utf8").localeCompare("$Admin Left the Chat") == 0 || data.toString("utf8").localeCompare(chalk.greenBright("Server") + ": " + "$Admin Left the Chat") == 0) {
+
+          console.log(chalk.redBright("Admin") + " Left the Chat")
+          console.log("Leaving The Group");
+          await setShellMode();
+        }
+        else if (data.toString("utf8").localeCompare("$leave group") == 0) {
+          console.log("Leaving The Group")
+          await setShellMode();
+
         } else {
           console.log(data.toString("utf8"));
         }
@@ -145,9 +160,9 @@ function init_readline() {
       if (is_command(line) == false) {
         console.log(
           chalk.redBright("ERROR:") +
-            " You are in Shell mode only Commands are allowed\nIf you don't know commands Enter " +
-            chalk.yellow("$help") +
-            " If you Need commands list with Discription"
+          " You are in Shell mode only Commands are allowed\nIf you don't know commands Enter " +
+          chalk.yellow("$help") +
+          " If you Need commands list with Discription"
         );
         process.stdout.write(chalk.redBright("➜ "));
         return;
@@ -160,7 +175,7 @@ function init_readline() {
         if (dummy.length > 0 && check_in_chat(dummy[0]) == -1) {
           console.log(
             chalk.redBright("ERROR:") +
-              "Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
+            "Invalid Command: only $help and $exit and $clear are allowed in chat 1-1 mode"
           );
           process.stdout.write(chalk.redBright("➜ "));
           return;
@@ -177,7 +192,7 @@ function init_readline() {
         if (dummy.length > 0 && check_in_group(dummy[0]) == -1) {
           console.log(
             chalk.redBright("ERROR:") +
-              "Invalid Command: only $remove_user, $gpinfo, $help, $exit, $clear are allowed in group mode"
+            "Invalid Command: only $remove_user, $gpinfo, $help, $exit, $clear are allowed in group mode"
           );
           process.stdout.write(chalk.redBright("➜ "));
           return;
@@ -196,9 +211,9 @@ function init_readline() {
       ) {
         console.log(
           chalk.redBright("ERROR:") +
-            " Invalid Command\nIf you don't know commands Enter " +
-            chalk.yellow("$help") +
-            " If you Need commands list with Discription"
+          " Invalid Command\nIf you don't know commands Enter " +
+          chalk.yellow("$help") +
+          " If you Need commands list with Discription"
         );
         process.stdout.write(chalk.redBright("➜ "));
         return;
@@ -233,6 +248,7 @@ function init_readline() {
           client.write(JSON.stringify({ type: "list_groups" }));
         } else {
           display_invalid();
+          return;
         }
       } else if (line.toLocaleLowerCase().localeCompare("$clear") == 0) {
         terminal.clear();
@@ -288,9 +304,10 @@ function init_readline() {
         } else if (parts[1].toLocaleLowerCase().localeCompare("-group") == 0) {
           let data = { type: "exit-group" };
           client.write(JSON.stringify(data));
-          await setShellMode();
+          //  await setShellMode();
         } else {
           display_invalid();
+          return;
         }
       } else if (
         parts.length == 3 &&
@@ -318,7 +335,10 @@ function init_readline() {
           group_password: parts[2],
         };
         client.write(JSON.stringify(data));
-      } else display_invalid();
+      } else {
+        display_invalid();
+        return;
+      }
     }
     process.stdout.write(chalk.redBright("➜ "));
   });
@@ -332,10 +352,11 @@ function init_readline() {
 function display_invalid() {
   console.log(
     chalk.redBright("ERROR:") +
-      " Invalid Command\nIf you don't know commands Enter " +
-      chalk.yellow("$help") +
-      " If you Need commands list with Discription"
+    " Invalid Command\nIf you don't know commands Enter " +
+    chalk.yellow("$help") +
+    " If you Need commands list with Discription"
   );
+  process.stdout.write(chalk.redBright("➜ "));
 }
 function close_readline() {
   process.stdin.destroy();
@@ -379,8 +400,8 @@ async function rotate_animation() {
     var twirlTimer = setInterval(function () {
       process.stdout.write(
         "\r" +
-          ` Terminal will Reset in  ${Math.round(count / 4)} Seconds ` +
-          P[x++]
+        ` Terminal will Reset in  ${Math.round(count / 4)} Seconds ` +
+        P[x++]
       );
       count -= 1;
       if (count < 0) {
@@ -437,19 +458,19 @@ process.on("beforeExit", async () => {
 process.on("exit", () => {
   console.log(
     chalk.yellowBright.bold("Have a Nice Day! ") +
-      "😊 " +
-      chalk.yellowBright.bold("Bye ") +
-      "👋"
+    "😊 " +
+    chalk.yellowBright.bold("Bye ") +
+    "👋"
   );
 });
 async function inquirer_login() {
   let answers = await inquirer.prompt(login);
   console.log(
     " " +
-      chalk.green.bold("Hurry! ") +
-      "🥳 " +
-      chalk.green.bold("Login Successfull ") +
-      "👍"
+    chalk.green.bold("Hurry! ") +
+    "🥳 " +
+    chalk.green.bold("Login Successfull ") +
+    "👍"
   );
 }
 
@@ -546,6 +567,9 @@ const register = [
     validate: async (input) => {
       if (input.length == 0) {
         return chalk.red("Username ") + "Cannot Be Empty";
+      }
+      if (input.indexOf("-") != -1) {
+        return chalk.red("Username ") + " Cannot contain '-'";
       }
       const result = await check_user.check(input);
       if (result == false) {

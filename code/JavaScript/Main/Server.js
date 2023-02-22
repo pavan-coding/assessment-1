@@ -10,6 +10,7 @@ const one_to_one = [];
 const group = [];
 let colors = new Set();
 let count_color = 1;
+
 function random_color() {
   while (colors.size < 256) {
     const color = randomColor({
@@ -26,6 +27,7 @@ random_color();
 async function user_offline(username_login) {
   await remove_user.remove_user(username_login);
 }
+
 function message_multiple(socket, message) {
   let i = 0;
   for (i = 0; i < group.length; i++) {
@@ -61,6 +63,7 @@ function notifyall(socket, message) {
       );
   }
 }
+
 function add_group(admin_name, admin_socket, name, password) {
   admin_socket.in_group = true;
   admin_socket.color = group_color;
@@ -75,6 +78,7 @@ function add_group(admin_name, admin_socket, name, password) {
   };
   group.push(obj);
 }
+
 function is_exists(name) {
   for (let i = 0; i < group.length; i++) {
     if (group[i].users.indexOf(name) != -1) {
@@ -83,6 +87,7 @@ function is_exists(name) {
   }
   return false;
 }
+
 function showgroups() {
   let answer = [];
   for (let i = 0; i < group.length; i++) {
@@ -90,6 +95,7 @@ function showgroups() {
   }
   return answer;
 }
+
 function remove_number(data) {
   let answer = [];
   for (let i = 0; i < data.length; i++) {
@@ -97,6 +103,7 @@ function remove_number(data) {
   }
   return answer;
 }
+
 function group_info(name) {
   let answer = [];
   //check group exists
@@ -117,12 +124,25 @@ function group_info(name) {
   }
   return answer;
 }
+
+function find_user_in_group(name) {
+  let i;
+  for (i = 0; i < group.length; i++) {
+    if (group[i].admin_name.localeCompare(name) == 0 || group[i].users.indexOf(name) != -1) {
+      return group[i].name;
+    }
+  }
+  return null;
+}
+
 function check_password(name, password) {
   let i;
-  for (i = 0; i < group.length; i++) if (group[i].name == name) break;
+  for (i = 0; i < group.length; i++)
+    if (group[i].name == name) break;
   if (group[i].password.localeCompare(password) == 0) return true;
   return false;
 }
+
 function add_user_in_group(name, username, user_socket) {
   let i;
   for (i = 0; i < group.length; i++) {
@@ -137,21 +157,36 @@ function add_user_in_group(name, username, user_socket) {
     }
   }
 }
+
 function remove_user_from_group(group_name, user_socket) {
   let i;
   for (i = 0; i < group.length; i++) {
-    if (group.name.localeCompare(group_name) == 0) {
-      let index = group[i].users.indexOf(user_socket.id);
-      let index2 = group[i].users_socket.indexOf(user_socket);
-      group[i].users.splice(index, 1);
-      group[i].users_socket.splice(index2, 1);
-      user_socket.in_group = false;
-      delete user_socket.color;
-      delete user_socket.myhexcolor;
+    if (group[i].name.localeCompare(group_name) == 0) {
       break;
     }
   }
+
+
+  if (user_socket.id.localeCompare(group[i].admin_socket.id) == 0) {
+    for (let j = 0; j < group[i].users_socket.length; j++) {
+      group[i].users_socket[j].in_group = false;
+      delete group[i].users_socket[j].color;
+      delete group[i].users_socket[j].myhexcolor;
+      console.log(user_socket.id, group[i].admin_socket.id);
+    }
+    group.splice(i, 1);
+  } else {
+    let index = group[i].users.indexOf(user_socket.id);
+    let index2 = group[i].users_socket.indexOf(user_socket);
+    group[i].users.splice(index, 1);
+    group[i].users_socket.splice(index2, 1);
+    user_socket.in_group = false;
+    delete user_socket.color;
+    delete user_socket.myhexcolor;
+  }
+  console.log("No of active groups " + group.length)
 }
+
 function is_user_in_other_group(username) {
   username = username.split("-")[0];
   // console.log(username);
@@ -166,6 +201,7 @@ function is_user_in_other_group(username) {
   }
   return true;
 }
+
 function getid(name) {
   let count = 0;
   for (let i = 0; i < sockets.length; i++) {
@@ -177,6 +213,7 @@ function getid(name) {
   count += 1;
   return name + "-" + count;
 }
+
 function getsocket(name) {
   let count = 0;
   for (let i = 0; i < sockets.length; i++) {
@@ -206,7 +243,7 @@ const server = net.createServer((socket) => {
       if (sockets.length > 1) {
         socket.write(
           chalk.greenBright("Server:") +
-            " The List of Clients who are online are:\n"
+          " The List of Clients who are online are:\n"
         );
         for (let i = 0; i < sockets.length; i++) {
           if (sockets[i][1].id.localeCompare(socket.id) != 0) {
@@ -220,6 +257,7 @@ const server = net.createServer((socket) => {
     }
     if (data.type.toLowerCase().localeCompare("request") == 0) {
       let dummy = getsocket(data.request_to);
+
       //  console.log(dummy);
       //   console.log(data);
       if (
@@ -227,15 +265,19 @@ const server = net.createServer((socket) => {
         dummy.in_one_to_one == false &&
         dummy.in_group == false
       ) {
+        if (dummy.id.split("-")[0].localeCompare(socket.id.split("-")[0]) == 0) {
+          socket.write(chalk.redBright("cannot Chat with Same person"))
+          return;
+        }
         socket.write(
           chalk.greenBright("Request Sent Successfully to :") +
-            chalk.yellowBright(data.request_to)
+          chalk.yellowBright(data.request_to)
         );
         dummy.write(
           chalk.yellowBright("Server:") +
-            " " +
-            chalk.greenBright(socket.id) +
-            " has Sent a Request to You"
+          " " +
+          chalk.greenBright(socket.id) +
+          " has Sent a Request to You"
         );
         await send_request.add_request(socket.id, data.request_to);
       } else {
@@ -290,7 +332,38 @@ const server = net.createServer((socket) => {
       }
     }
     if (data.type.toLowerCase().localeCompare("exit-chat") == 0) {
-      remove_alternate(socket);
+      if (socket.hasOwnProperty("in_one_to_one") && socket.in_one_to_one == true)
+        remove_alternate(socket);
+      else
+        socket.write(chalk.redBright("You are not in Any chat"));
+
+    }
+    if (data.type.toLowerCase().localeCompare("exit-group") == 0) {
+      if (socket.hasOwnProperty("in_group") && socket.in_group == true) {
+        let group_name = find_user_in_group(socket.id);
+
+        let i;
+        for (i = 0; i < group.length; i++) {
+          if (group[i].name.localeCompare(group_name) == 0) {
+            break;
+          }
+        }
+        // console.log(i,group_name+"received")
+        if (group[i].admin_name.localeCompare(socket.id) == 0) {
+          notifyall(socket, "$Admin Left the Chat")
+          socket.write("$Admin Left the Chat")
+        }
+        else {
+          notifyall(socket, socket.id + " Left the Chat")
+          socket.write("$leave group"
+          )
+        }
+        remove_user_from_group(group_name, socket)
+      }
+      else {
+        socket.write(chalk.redBright("You are not in any group"));
+
+      }
     }
     if (data.type.toLowerCase().localeCompare("message") == 0) {
       if (data.chat.toLowerCase().localeCompare("1-1") == 0) {
@@ -362,8 +435,9 @@ const server = net.createServer((socket) => {
       }
     }
   });
-  socket.on("error", (err) => {});
+  socket.on("error", (err) => { });
 });
+
 function remove_alternate(socket) {
   let i;
   for (i = 0; i < one_to_one.length; i++) {
@@ -393,32 +467,36 @@ function remove_alternate(socket) {
   }
   console.log("No of Chats" + one_to_one.length);
 }
+
 function sent_to_alternate(socket, message) {
   for (let i = 0; i < one_to_one.length; i++) {
     if (socket == one_to_one[i][0] || socket == one_to_one[i][1]) {
       if (socket == one_to_one[i][0]) {
         one_to_one[i][1].write(
           one_to_one[i][0].color(one_to_one[i][0].id).split("-")[0] +
-            ": " +
-            message
+          ": " +
+          message
         );
       } else {
         one_to_one[i][0].write(
           one_to_one[i][1].color(one_to_one[i][1].id).split("-")[0] +
-            ": " +
-            message
+          ": " +
+          message
         );
       }
       break;
     }
   }
 }
+
 function yellow(string) {
   return chalk.yellowBright(string);
 }
+
 function green(string) {
   return chalk.greenBright(string);
 }
+
 function group_color(hexvalue, message) {
   return chalk.hex(hexvalue)(message);
 }
