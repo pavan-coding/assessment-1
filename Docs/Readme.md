@@ -1,30 +1,17 @@
 
+![ ](assessment-1-Page-1.png)
 
+
+<head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+</head>
+<a href="image.jpg" data-lightbox="image-gallery">
+  <img src="assessment-1-Page-1.png" alt="image description" width="500">
+</a>
 <script>
-function zoomImage(event) {
-  var img = event.target;
-  var modal = document.createElement('div');
-  modal.style.display = 'block';
-  modal.style.position = 'fixed';
-  modal.style.zIndex = '999';
-  modal.style.width = '100%';
-  modal.style.height = '100%';
-  modal.style.top = '0';
-  modal.style.left = '0';
-  modal.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-  modal.onclick = function() {
-    modal.style.display = 'none';
-  };
-  var modalImg = document.createElement('img');
-  modalImg.src = img.src;
-  modalImg.style.width = 'auto';
-  modalImg.style.height = '90%';
-  modalImg.style.margin = 'auto';
-  modalImg.style.display = 'block';
-  modal.appendChild(modalImg);
-  document.body.appendChild(modal);
-}
+  lightbox.option({
+    'resizeDuration': 200,
+    'wrapAround': true
+  })
 </script>
-
-
-<img src="assessment-1-Page-1.png" alt="description of the image" width="500px" onclick="zoomImage(event)">
